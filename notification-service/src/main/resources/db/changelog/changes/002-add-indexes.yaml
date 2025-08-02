@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002
+      author: paypulse
+      changes:
+        - createIndex:
+            tableName: notifications
+            indexName: idx_notifications_user_id
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: notifications
+            indexName: idx_notifications_created_at
+            columns:
+              - column:
+                  name: created_at
+        - createIndex:
+            tableName: notifications
+            indexName: idx_notifications_read
+            columns:
+              - column:
+                  name: read 

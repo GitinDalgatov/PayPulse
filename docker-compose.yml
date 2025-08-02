@@ -1,0 +1,318 @@
+services:
+
+  
+  kafka:
+    image: bitnami/kafka:latest
+    environment:
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_KRAFT_CLUSTER_ID=kraft-cluster-id
+    ports:
+      - "9092:9092"
+    networks:
+      - paypulse
+
+  
+  auth-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - paypulse
+
+  
+  wallet-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: wallet
+      POSTGRES_USER: wallet_user
+      POSTGRES_PASSWORD: ${WALLET_DB_PASSWORD}
+    volumes:
+      - wallet-db-data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - paypulse
+
+  
+  transaction-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: transaction
+      POSTGRES_USER: tx_user
+      POSTGRES_PASSWORD: ${TRANSACTION_DB_PASSWORD}
+    volumes:
+      - tx-db-data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    networks:
+      - paypulse
+
+  
+  notification-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: notification
+      POSTGRES_USER: notif_user
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+    volumes:
+      - notif-db-data:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+    networks:
+      - paypulse
+
+  
+  analytics-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics_user
+      POSTGRES_PASSWORD: ${ANALYTICS_DB_PASSWORD}
+    volumes:
+      - analytics-db-data:/var/lib/postgresql/data
+    ports:
+      - "5437:5432"
+    networks:
+      - paypulse
+
+  
+  auth-service:
+    image: auth-service:latest
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_HOST=auth-db
+      - DB_PORT=5432
+      - DB_NAME=auth
+      - DB_USERNAME=auth_user
+      - DB_PASSWORD=${AUTH_DB_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONSUMER_GROUP_ID=auth-group
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - auth-db
+      - kafka
+    networks:
+      - paypulse
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  
+  wallet-service:
+    image: wallet-service:latest
+    build:
+      context: .
+      dockerfile: wallet-service/Dockerfile
+    environment:
+      - DB_HOST=wallet-db
+      - DB_PORT=5432
+      - DB_NAME=wallet
+      - DB_USERNAME=wallet_user
+      - DB_PASSWORD=${WALLET_DB_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONSUMER_GROUP_ID=wallet-group
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - wallet-db
+      - kafka
+      - redis
+    networks:
+      - paypulse
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  
+  transaction-service:
+    image: transaction-service:latest
+    build:
+      context: .
+      dockerfile: transaction-service/Dockerfile
+    environment:
+      - DB_HOST=transaction-db
+      - DB_PORT=5432
+      - DB_NAME=transaction
+      - DB_USERNAME=tx_user
+      - DB_PASSWORD=${TRANSACTION_DB_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONSUMER_GROUP_ID=transaction-group
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - transaction-db
+      - kafka
+      - redis
+      - wallet-service
+    networks:
+      - paypulse
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  
+  notification-service:
+    image: notification-service:latest
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    environment:
+      - DB_HOST=notification-db
+      - DB_PORT=5432
+      - DB_NAME=notification
+      - DB_USERNAME=notif_user
+      - DB_PASSWORD=${NOTIFICATION_DB_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONSUMER_GROUP_ID=notification-group
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - notification-db
+      - kafka
+      - redis
+    networks:
+      - paypulse
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  
+  analytics-service:
+    image: analytics-service:latest
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    environment:
+      - DB_HOST=analytics-db
+      - DB_PORT=5432
+      - DB_NAME=analytics
+      - DB_USERNAME=analytics_user
+      - DB_PASSWORD=${ANALYTICS_DB_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_CONSUMER_GROUP_ID=analytics-group
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - analytics-db
+      - kafka
+      - redis
+    networks:
+      - paypulse
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  
+  api-gateway:
+    image: api-gateway:latest
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      - SPRING_CLOUD_GATEWAY_DEFAULT_FILTERS=RemoveRequestHeader=Cookie
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - SPRING_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_HOST=redis
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - wallet-service
+      - transaction-service
+      - notification-service
+      - analytics-service
+    networks:
+      - paypulse
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    networks:
+      - paypulse
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - paypulse
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - paypulse
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8088:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    depends_on:
+      - kafka
+    networks:
+      - paypulse
+
+
+networks:
+  paypulse:
+    driver: bridge
+
+volumes:
+  auth-db-data:
+  wallet-db-data:
+  tx-db-data:
+  notif-db-data:
+  analytics-db-data:

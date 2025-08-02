@@ -1,0 +1,406 @@
+### 🐳 DOCKER COMPOSE: используйте localhost URLs
+### Запуск: docker-compose up -d
+
+### ============================================
+### 1. АУТЕНТИФИКАЦИЯ
+### ============================================
+
+### Регистрация первого пользователя
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "TestPass123!",
+  "email": "test@example.com"
+}
+
+### Регистрация второго пользователя
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "user2",
+  "password": "TestPass123!",
+  "email": "user2@example.com"
+}
+
+### Вход в систему (после регистрации)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "TestPass123!"
+}
+
+### Вход в систему (второй пользователь)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "user2",
+  "password": "TestPass123!"
+}
+
+### Тест входа с неправильным паролем
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "WrongPassword123!"
+}
+
+### Тест входа с несуществующим пользователем
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "nonexistentuser",
+  "password": "TestPass123!"
+}
+
+### Тест неверного формата токена
+GET http://localhost:8080/api/wallet/balance
+Authorization: Bearer INVALID_TOKEN_FORMAT
+
+### Тест истекшего токена
+GET http://localhost:8080/api/wallet/balance
+Authorization: Bearer EXPIRED_TOKEN_HERE
+
+### Выход из системы
+POST http://localhost:8080/api/auth/logout
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Тест logout с неверным токеном
+POST http://localhost:8080/api/auth/logout
+Authorization: Bearer INVALID_TOKEN
+
+### Тест logout без токена
+POST http://localhost:8080/api/auth/logout
+
+### Обновление токена
+POST http://localhost:8080/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+}
+
+### Назначение роли пользователю (только ADMIN)
+POST http://localhost:8080/api/auth/assign-role?username=testuser&role=ROLE_ADMIN
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+
+### Проверка доступности auth-service
+GET http://localhost:8080/api/auth/ping
+
+### ============================================
+### 2. КОШЕЛЕК (WALLET)
+### ============================================
+
+### Получить баланс пользователя
+GET http://localhost:8080/api/wallet/balance
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Пополнить баланс
+POST http://localhost:8080/api/wallet/deposit
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "amount": 1000.0,
+  "description": "Пополнение баланса"
+}
+
+### Тест валидации данных - отрицательная сумма
+POST http://localhost:8080/api/wallet/deposit
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "amount": -100.0,
+  "description": "Отрицательная сумма"
+}
+
+### Списать средства с кошелька (ИСПРАВЛЕНО: убрано поле userId)
+POST http://localhost:8080/api/wallet/withdraw
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "amount": 100.0,
+  "description": "Списание средств"
+}
+
+### Тест валидации данных - пустое описание
+POST http://localhost:8080/api/wallet/withdraw
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "amount": 50.0,
+  "description": ""
+}
+
+### Получить историю операций пользователя
+GET http://localhost:8080/api/wallet/history
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Получить историю операций с пагинацией
+GET http://localhost:8080/api/wallet/history?page=0&size=10&sortBy=timestamp&sortDir=desc
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Вся история операций (только ADMIN)
+GET http://localhost:8080/api/wallet/all-history?page=0&size=20
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+
+### Тест доступа к админским эндпоинтам без прав
+GET http://localhost:8080/api/wallet/all-history?page=0&size=20
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Админское пополнение баланса (только ADMIN)
+POST http://localhost:8080/api/wallet/admin/deposit/YOUR_USER_ID_HERE
+Content-Type: application/json
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+
+{
+  "amount": 500.0,
+  "description": "Админское пополнение"
+}
+
+### Метрики outbox (Wallet Service)
+GET http://localhost:8080/api/wallet/outbox-metrics
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### ============================================
+### 3. ТРАНЗАКЦИИ (TRANSACTIONS)
+### ============================================
+
+### Создать транзакцию между пользователями
+POST http://localhost:8080/api/transactions
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "fromUserId": "YOUR_USER_ID_HERE",
+  "toUserId": "ANOTHER_USER_ID_HERE",
+  "amount": 25.0
+}
+
+### Получить историю транзакций пользователя
+GET http://localhost:8080/api/transactions
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Получить историю транзакций (альтернативный путь)
+GET http://localhost:8080/api/transactions/history
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Метрики outbox (Transaction Service)
+GET http://localhost:8080/api/transactions/outbox-metrics
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### ============================================
+### 4. УВЕДОМЛЕНИЯ (NOTIFICATIONS)
+### ============================================
+
+### Получить уведомления пользователя
+GET http://localhost:8080/api/notifications
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### ============================================
+### 5. АНАЛИТИКА (ANALYTICS)
+### ============================================
+
+### Получить аналитику пользователя
+GET http://localhost:8080/api/analytics/summary
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Получить аналитику транзакций
+GET http://localhost:8080/api/analytics/transactions
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Получить события изменения баланса
+GET http://localhost:8080/api/analytics/balance-events
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+
+### Получить события транзакций
+GET http://localhost:8080/api/analytics/transaction-events
+Authorization: Bearer YOUR_ADMIN_TOKEN_HERE
+
+### ============================================
+### 6. SWAGGER UI
+### ============================================
+
+### Swagger UI - Auth Service
+GET http://localhost:8081/swagger-ui/index.html
+
+### Swagger UI - Wallet Service
+GET http://localhost:8082/swagger-ui/index.html
+
+### Swagger UI - Transaction Service
+GET http://localhost:8083/swagger-ui/index.html
+
+### Swagger UI - Notification Service
+GET http://localhost:8084/swagger-ui/index.html
+
+### Swagger UI - Analytics Service
+GET http://localhost:8085/swagger-ui/index.html
+
+### API Documentation
+GET http://localhost:8080/docs/
+
+### ============================================
+### 7. МОНИТОРИНГ
+### ============================================
+
+### Проверка здоровья API Gateway
+GET http://localhost:8080/actuator/health
+
+### Проверка здоровья Auth Service
+GET http://localhost:8081/actuator/health
+
+### Проверка здоровья Wallet Service
+GET http://localhost:8082/actuator/health
+
+### Проверка здоровья Transaction Service
+GET http://localhost:8083/actuator/health
+
+### Notification Service Health Check
+GET http://localhost:8084/actuator/health
+
+### Analytics Service Health Check
+GET http://localhost:8085/actuator/health
+
+### ============================================
+### 8. ВНЕШНИЕ СЕРВИСЫ
+### ============================================
+
+### Grafana (мониторинг)
+GET http://localhost:3000/api/health
+
+### Prometheus (метрики)
+GET http://localhost:9090/-/healthy
+
+### Kafka UI
+GET http://localhost:8088
+
+### ============================================
+### 9. ПРИМЕРЫ ПОЛНОГО РАБОЧЕГО ПРОЦЕССА
+### ============================================
+
+### Шаг 1: Регистрация пользователя
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "john_doe",
+  "password": "SecurePass123!",
+  "email": "john@example.com"
+}
+
+### Шаг 2: Вход в систему (получить токен)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "john_doe",
+  "password": "SecurePass123!"
+}
+
+### Шаг 3: Пополнить баланс
+POST http://localhost:8080/api/wallet/deposit
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "amount": 1000.0,
+  "description": "Начальное пополнение"
+}
+
+### Шаг 4: Проверить баланс
+GET http://localhost:8080/api/wallet/balance
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Шаг 5: Создать транзакцию (если есть другой пользователь)
+POST http://localhost:8080/api/transactions
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "fromUserId": "YOUR_USER_ID_HERE",
+  "toUserId": "ANOTHER_USER_ID_HERE",
+  "amount": 100.0
+}
+
+### Шаг 6: Проверить историю транзакций
+GET http://localhost:8080/api/transactions
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Шаг 7: Проверить аналитику
+GET http://localhost:8080/api/analytics/summary
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### Шаг 8: Проверить уведомления
+GET http://localhost:8080/api/notifications
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### ============================================
+### 10. ПРИМЕРЫ ОШИБОК (НЕГАТИВНЫЕ ТЕСТЫ)
+### ============================================
+
+### Попытка входа с неправильным паролем
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "WrongPassword123!"
+}
+
+### Попытка пополнения без токена
+POST http://localhost:8080/api/wallet/deposit
+Content-Type: application/json
+
+{
+  "amount": 100.0,
+  "description": "Пополнение"
+}
+
+### Попытка создания транзакции с несуществующим пользователем
+POST http://localhost:8080/api/transactions
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "fromUserId": "YOUR_USER_ID_HERE",
+  "toUserId": "NONEXISTENT_USER_ID",
+  "amount": 50.0
+}
+
+### Попытка списания больше средств, чем есть на балансе (ИСПРАВЛЕНО: убрано поле userId)
+POST http://localhost:8080/api/wallet/withdraw
+Content-Type: application/json
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+{
+  "amount": 999999.0,
+  "description": "Попытка списания большого количества"
+}
+
+### ============================================
+### 11. ИНСТРУКЦИИ ПО ИСПОЛЬЗОВАНИЮ
+### ============================================
+
+### 1. Запустите систему: docker-compose up -d
+### 2. Дождитесь запуска всех сервисов (30-60 секунд)
+### 3. Замените YOUR_ACCESS_TOKEN_HERE на реальный токен
+### 4. Замените YOUR_USER_ID_HERE на реальный UUID пользователя
+### 5. Выполняйте запросы по порядку для полного тестирования
+
+### ПРИМЕЧАНИЯ:
+### - WithdrawRequest содержит только amount и description (НЕ userId)
+### - Admin endpoints требуют ROLE_ADMIN
+### - Токены имеют ограниченное время жизни (15 минут для access, 7 дней для refresh)
+### - Все суммы должны быть положительными
+### - Описания не могут быть пустыми 

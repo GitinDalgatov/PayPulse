@@ -1,0 +1,95 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: wallet-service
+  
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:wallet-db}:${DB_PORT:5432}/${DB_NAME:wallet}
+    username: ${DB_USERNAME:wallet_user}
+    password: ${DB_PASSWORD:wallet_password}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+  
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: ${LIQUIBASE_CONTEXTS:}
+    default-schema: public
+  
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:wallet-group}
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-here-make-it-long-and-secure}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.paypulse.wallet: DEBUG
+    org.springframework.cache: DEBUG
+    org.springframework.data.redis: DEBUG
+    com.paypulse.wallet.service.OutboxProcessor: DEBUG
+    com.paypulse.wallet.service.OutboxService: DEBUG
+    org.liquibase: INFO
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","logger":"%c{1.}","traceId":"%X{traceId}","spanId":"%X{spanId}","userId":"%X{userId}","message":"%m","thread":"%t"}'
+    file: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss.SSS}","level":"%p","logger":"%c{1.}","traceId":"%X{traceId}","spanId":"%X{spanId}","userId":"%X{userId}","message":"%m","thread":"%t"}'
+  file:
+    name: logs/wallet-service.log
+    max-size: 10MB
+    max-history: 30
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 1GB
+
+
+outbox:
+  max-retries: 3
+  batch-size: 10
+  cleanup:
+    days: 7
+
+
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    config-url: /v3/api-docs/swagger-config
+    url: /v3/api-docs
+    disable-swagger-default-url: true

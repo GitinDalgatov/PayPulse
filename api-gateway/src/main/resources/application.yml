@@ -1,0 +1,226 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: auth-service
+          uri: http://auth-service:8081
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: auth-circuit-breaker
+                fallbackUri: forward:/fallback/auth
+        - id: wallet-service
+          uri: http://wallet-service:8082
+          predicates:
+            - Path=/api/wallet/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: wallet-circuit-breaker
+                fallbackUri: forward:/fallback/wallet
+        - id: transaction-service
+          uri: http://transaction-service:8083
+          predicates:
+            - Path=/api/transactions/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: transaction-circuit-breaker
+                fallbackUri: forward:/fallback/transaction
+        - id: notification-service
+          uri: http://notification-service:8084
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: notification-circuit-breaker
+                fallbackUri: forward:/fallback/notification
+        - id: analytics-service
+          uri: http://analytics-service:8085
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: analytics-circuit-breaker
+                fallbackUri: forward:/fallback/analytics
+        - id: swagger-auth-service
+          uri: http://auth-service:8081
+          predicates:
+            - Path=/docs/auth/**
+          filters:
+            - StripPrefix=2
+        - id: swagger-wallet-service
+          uri: http://wallet-service:8082
+          predicates:
+            - Path=/docs/wallet/**
+          filters:
+            - StripPrefix=2
+        - id: swagger-transaction-service
+          uri: http://transaction-service:8083
+          predicates:
+            - Path=/docs/transaction/**
+          filters:
+            - StripPrefix=2
+        - id: swagger-notification-service
+          uri: http://notification-service:8084
+          predicates:
+            - Path=/docs/notification/**
+          filters:
+            - StripPrefix=2
+        - id: swagger-analytics-service
+          uri: http://analytics-service:8085
+          predicates:
+            - Path=/docs/analytics/**
+          filters:
+            - StripPrefix=2
+        - id: internal-wallet-service
+          uri: http://wallet-service:8082
+          predicates:
+            - Path=/internal/wallet/**
+          filters:
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: wallet-circuit-breaker
+                fallbackUri: forward:/fallback/internal-wallet
+        - id: monitoring-auth-service
+          uri: http://auth-service:8081
+          predicates:
+            - Path=/monitoring/auth/**
+          filters:
+            - StripPrefix=1
+        - id: monitoring-wallet-service
+          uri: http://wallet-service:8082
+          predicates:
+            - Path=/monitoring/wallet/**
+          filters:
+            - StripPrefix=1
+        - id: monitoring-transaction-service
+          uri: http://transaction-service:8083
+          predicates:
+            - Path=/monitoring/transaction/**
+          filters:
+            - StripPrefix=1
+        - id: monitoring-notification-service
+          uri: http://notification-service:8084
+          predicates:
+            - Path=/monitoring/notification/**
+          filters:
+            - StripPrefix=1
+        - id: monitoring-analytics-service
+          uri: http://analytics-service:8085
+          predicates:
+            - Path=/monitoring/analytics/**
+          filters:
+            - StripPrefix=1
+        - id: prometheus
+          uri: http://prometheus:9090
+          predicates:
+            - Path=/monitoring/prometheus/**
+          filters:
+            - RewritePath=/monitoring/prometheus/(?<segment>.*), /$\{segment}
+        - id: grafana
+          uri: http://grafana:3000
+          predicates:
+            - Path=/monitoring/grafana/**
+          filters:
+            - StripPrefix=1
+      default-filters:
+        - RemoveRequestHeader=Cookie
+        - RemoveResponseHeader=Set-Cookie
+  redis:
+    host: ${SPRING_REDIS_HOST:redis}
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:86400000}
+  refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+
+
+rate-limit:
+  max-requests-per-minute: ${RATE_LIMIT_MAX_REQUESTS:100}
+  window-size-minutes: ${RATE_LIMIT_WINDOW:1}
+  enabled: true
+
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      auth-circuit-breaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      wallet-circuit-breaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      transaction-circuit-breaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      notification-circuit-breaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+      analytics-circuit-breaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.paypulse.gateway: DEBUG
+    org.springframework.web.reactive.function.client.WebClient: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

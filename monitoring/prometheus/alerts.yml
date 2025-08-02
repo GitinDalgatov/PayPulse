@@ -1,0 +1,65 @@
+groups:
+  - name: paypulse-alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{status=~"4..|5.."}[5m]) / rate(http_server_requests_seconds_count[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.job }}"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response time for {{ $labels.job }}"
+          description: "95th percentile response time is {{ $value }}s for {{ $labels.job }}"
+
+      - alert: HighMemoryUsage
+        expr: (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage for {{ $labels.job }}"
+          description: "Memory usage is {{ $value | humanizePercentage }} for {{ $labels.job }}"
+
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is open for {{ $labels.job }}"
+          description: "Circuit breaker {{ $labels.name }} is open for {{ $labels.job }}"
+
+      - alert: HighKafkaLag
+        expr: kafka_consumer_group_max_lag > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Kafka consumer lag for {{ $labels.job }}"
+          description: "Kafka consumer lag is {{ $value }} for {{ $labels.job }}"
+
+      - alert: NoRequests
+        expr: rate(http_server_requests_seconds_count[5m]) == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No requests for {{ $labels.job }}"
+          description: "No requests received for {{ $labels.job }} in the last 10 minutes" 
