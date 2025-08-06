@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003
+      author: paypulse
+      changes:
+        - createIndex:
+            tableName: transaction_history
+            indexName: idx_transaction_history_user_id
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: transaction_history
+            indexName: idx_transaction_history_timestamp
+            columns:
+              - column:
+                  name: timestamp
+        - createIndex:
+            tableName: outbox_events
+            indexName: idx_outbox_events_processed_at
+            columns:
+              - column:
+                  name: processed_at
+        - createIndex:
+            tableName: outbox_events
+            indexName: idx_outbox_events_aggregate_id
+            columns:
+              - column:
+                  name: aggregate_id 
